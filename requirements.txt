@@ -1,0 +1,21 @@
+# Water Quality Data Exporter Requirements
+# Python 3.8+ required
+
+# Database
+psycopg2-binary==2.9.9
+
+# Excel handling
+openpyxl==3.1.2
+
+# GUI
+tkcalendar==1.6.1
+Pillow==10.2.0
+
+# Configuration
+tomli==2.0.1
+
+# Packaging (for development)
+pyinstaller==6.3.0
+
+# Optional but recommended
+python-dotenv==1.0.0

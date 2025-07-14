@@ -1,0 +1,37 @@
+# AquaExport Pro 2.0 Configuration File
+# Edit these settings to match your environment
+
+[database]
+# PostgreSQL connection settings
+host = "localhost"
+port = 5432
+name = "SCADA_arhiva_rab"
+user = "postgres"
+password = "fornax123"
+
+[export]
+# Export settings
+directory = "./exports"           # Where to save Excel files
+template_path = "./template.xlsx" # Path to Excel template
+
+# Optional: Tag mappings can be overridden here
+# [tag_mappings.pk_barbat]
+# mutnoca = 3
+# klor = 21
+# temp = 134
+# pH = 132
+# redox = 133
+
+# [tag_mappings.vs_lopar]
+# mutnoca = 151
+# klor = 155
+# temp = 156
+# pH = null
+# redox = null
+
+# [tag_mappings.vs_perici]
+# mutnoca = null
+# klor = 72
+# temp = 82
+# pH = null
+# redox = 81
