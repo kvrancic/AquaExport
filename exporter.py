@@ -311,7 +311,15 @@ class WaterQualityExporter:
         
         if wb_path.exists():
             self.logger.info(f"Opening existing workbook: {wb_path}")
-            wb = openpyxl.load_workbook(wb_path)
+            try:
+                wb = openpyxl.load_workbook(wb_path)
+            except PermissionError:
+                # File is likely open in Excel
+                raise PermissionError(
+                    f"Datoteka {wb_path.name} je trenutno otvorena u Excel-u!\n\n"
+                    f"Molimo zatvorite datoteku u Excel-u i pokušajte ponovno.\n"
+                    f"Datoteka: {wb_path}"
+                )
         else:
             self.logger.info(f"Creating new workbook from template for year {year}")
             # Copy template
@@ -411,8 +419,16 @@ class WaterQualityExporter:
                             progress_callback(processed_days, total_days)
                 
                 # Save workbook
-                wb.save(wb_path)
-                self.logger.info(f"Saved workbook: {wb_path}")
+                try:
+                    wb.save(wb_path)
+                    self.logger.info(f"Saved workbook: {wb_path}")
+                except PermissionError:
+                    # File is likely open in Excel
+                    raise PermissionError(
+                        f"Datoteka {wb_path.name} je trenutno otvorena u Excel-u!\n\n"
+                        f"Molimo zatvorite datoteku u Excel-u i pokušajte ponovno.\n"
+                        f"Datoteka: {wb_path}"
+                    )
                 
             except Exception as e:
                 self.logger.error(f"Error writing to Excel: {e}")
@@ -734,6 +750,12 @@ class ModernGUI:
             
             if start > end:
                 raise ValueError("Početni datum mora biti prije završnog datuma!")
+            
+            # Check for potentially open Excel files
+            self.log_status("Provjera otvorenih Excel datoteka...")
+            open_files = self.check_open_excel_files(start, end)
+            if open_files:
+                self.log_status(f"Upozorenje: {len(open_files)} datoteka možda je otvoreno", "WARNING")
                 
             self.log_status(f"Početak izvoza: {start} - {end}")
             
@@ -769,6 +791,19 @@ class ModernGUI:
                     )
                 )
                 
+        except PermissionError as e:
+            self.logger.error(f"Permission error during export: {e}")
+            self.log_status(f"GREŠKA: Datoteka je otvorena u Excel-u!", "ERROR")
+            
+            self.root.after(
+                0,
+                lambda: messagebox.showerror(
+                    "Datoteka je otvorena",
+                    f"Excel datoteka je trenutno otvorena!\n\n"
+                    f"Molimo zatvorite datoteku u Excel-u i pokušajte ponovno.\n\n"
+                    f"{str(e)}"
+                )
+            )
         except Exception as e:
             self.logger.error(f"Export failed: {e}\n{traceback.format_exc()}")
             self.log_status(f"GREŠKA: {str(e)}", "ERROR")
@@ -785,6 +820,31 @@ class ModernGUI:
             self.exporter.disconnect_db()
             self.root.after(0, self.reset_ui)
             
+    def check_open_excel_files(self, start_date: date, end_date: date) -> List[str]:
+        """Check if any Excel files that will be written to are potentially open."""
+        open_files = []
+        
+        # Check each year that will be processed
+        current = start_date
+        while current <= end_date:
+            year = current.year
+            wb_path = self.config.export_dir / f"export_{year}.xlsx"
+            
+            if wb_path.exists():
+                try:
+                    # Try to open the file in write mode to check if it's locked
+                    with open(wb_path, 'r+b') as f:
+                        pass  # File is not locked
+                except PermissionError:
+                    open_files.append(wb_path.name)
+            
+            # Move to next year
+            current = date(year + 1, 1, 1)
+            if current > end_date:
+                break
+                
+        return open_files
+        
     def reset_ui(self):
         """Reset UI after export."""
         self.export_button.config(state=tk.NORMAL, text="IZVEZI PODATKE")
@@ -812,6 +872,7 @@ AquaExport Pro 2.0 - Upute za korištenje
 
 4. NAPOMENE:
    • Ne zatvarajte program tijekom izvoza
+   • Zatvorite Excel datoteke prije izvoza
    • Za probleme provjerite log datoteku
    • Kontakt: neven.vrancic@fornax-automatika.hr
         """
