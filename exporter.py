@@ -813,7 +813,7 @@ AquaExport Pro 2.0 - Upute za korištenje
 4. NAPOMENE:
    • Ne zatvarajte program tijekom izvoza
    • Za probleme provjerite log datoteku
-   • Kontakt: podrska@vodovod.hr
+   • Kontakt: neven.vrancic@fornax-automatika.hr
         """
         
         messagebox.showinfo("Pomoć", help_text.strip())
