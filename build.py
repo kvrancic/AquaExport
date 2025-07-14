@@ -39,6 +39,8 @@ def build_executable():
         '--hidden-import=psycopg2',
         '--hidden-import=openpyxl',
         '--hidden-import=tomli',
+        '--hidden-import=babel',
+        '--hidden-import=babel.numbers',
         '--clean',
         '--noconfirm',
     ] + icon_arg
