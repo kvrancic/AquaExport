@@ -446,7 +446,7 @@ class ModernGUI:
         
         self.root = tk.Tk()
         self.root.title("AquaExport Pro 2.0 - Izvoz Podataka Kvalitete Vode")
-        self.root.geometry("600x500")
+        self.root.geometry("600x720")
         self.root.resizable(False, False)
         
         # Set icon (if available)
