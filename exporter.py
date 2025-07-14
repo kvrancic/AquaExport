@@ -133,34 +133,6 @@ class Config:
 class WaterQualityExporter:
     """Main exporter class handling database queries and Excel writing."""
     
-    # Tag mappings based on analysis
-    TAG_MAPPINGS = {
-        'PK Barbat': TagMapping(
-            location='PK Barbat',
-            mutnoca=3,
-            klor=21,
-            temp=134,
-            pH=132,
-            redox=133
-        ),
-        'VS Lopar': TagMapping(
-            location='VS Lopar',
-            mutnoca=151,  # Needs verification
-            klor=155,     # Needs verification  
-            temp=156,     # Needs verification
-            pH=None,      # Missing in old script
-            redox=None    # Missing in old script
-        ),
-        'VS Perici': TagMapping(
-            location='VS Perici',
-            mutnoca=None, # Missing in old script
-            klor=72,
-            temp=82,
-            pH=None,      # Missing in old script
-            redox=81
-        )
-    }
-    
     # Excel layout constants
     MONTH_NAMES = {
         1: "siječanj", 2: "veljača", 3: "ožujak", 4: "travanj",
@@ -178,6 +150,72 @@ class WaterQualityExporter:
         self.config = config
         self.logger = logger
         self.conn = None
+        
+        # Load tag mappings from config if available, otherwise use defaults
+        self.tag_mappings = self._load_tag_mappings()
+        
+    def _load_tag_mappings(self) -> Dict[str, TagMapping]:
+        """Load tag mappings from config file or use defaults."""
+        # Default mappings based on electrical engineers' PLC addresses
+        default_mappings = {
+            'PK Barbat': TagMapping(
+                location='PK Barbat',
+                mutnoca=3,      # N12:7 - pk_barb\mutnoca
+                klor=21,        # N12:8 - pk_barb\trend_klora_izlaza
+                temp=134,       # N12:10 - pk_barb\temperatura_vode
+                pH=132,         # N12:9 - pk_barb\pH_vode
+                redox=133       # N12:11 - pk_barb\redox
+            ),
+            'VS Lopar': TagMapping(
+                location='VS Lopar',
+                mutnoca=None,   # Not measured at this location
+                klor=151,       # N22:3 - vsloparn\N22_3
+                temp=155,       # N22:7 - vsloparn\N22_7
+                pH=None,        # Not measured at this location
+                redox=156       # N22:9 - vsloparn\N22_9
+            ),
+            'VS Perici': TagMapping(
+                location='VS Perici',
+                mutnoca=None,   # Not measured at this location
+                klor=72,        # N15:40 - vs_perici\klor
+                temp=82,        # N15:42 - vs_perici\temp_vode
+                pH=None,        # Not measured at this location
+                redox=81        # N15:41 - vs_perici\redox
+            )
+        }
+        
+        # Try to load from config file if tag_mappings section exists
+        try:
+            import tomli
+            with open("config.toml", "rb") as f:
+                config_data = tomli.load(f)
+                
+            if "tag_mappings" in config_data:
+                self.logger.info("Loading tag mappings from config.toml")
+                mappings = {}
+                
+                for location, tags in config_data["tag_mappings"].items():
+                    # Convert location key to proper name
+                    location_name = {
+                        'pk_barbat': 'PK Barbat',
+                        'vs_lopar': 'VS Lopar',
+                        'vs_perici': 'VS Perici'
+                    }.get(location.lower(), location)
+                    
+                    mappings[location_name] = TagMapping(
+                        location=location_name,
+                        mutnoca=tags.get('mutnoca'),
+                        klor=tags.get('klor'),
+                        temp=tags.get('temp'),
+                        pH=tags.get('pH'),
+                        redox=tags.get('redox')
+                    )
+                    
+                return mappings
+        except Exception as e:
+            self.logger.debug(f"Using default tag mappings: {e}")
+            
+        return default_mappings
         
     def connect_db(self) -> None:
         """Establish database connection."""
@@ -229,7 +267,7 @@ class WaterQualityExporter:
                 """
                 
                 # Fetch data for each location and parameter
-                for location, mapping in self.TAG_MAPPINGS.items():
+                for location, mapping in self.tag_mappings.items():
                     self.logger.info(f"Fetching data for {location}")
                     
                     params = {
@@ -340,14 +378,23 @@ class WaterQualityExporter:
                         if day == 1:
                             ws[f'B{row}'] = location
                         
-                        # Write parameter values
-                        col_mapping = {
-                            'mutnoca': {'max': 'C', 'min': 'D', 'avg': 'E'},
-                            'klor': {'max': 'F', 'min': 'G', 'avg': 'H'},
-                            'temp': {'max': 'I', 'min': 'J', 'avg': 'K'},
-                            'pH': {'max': 'L', 'min': 'M', 'avg': 'N'},
-                            'redox': {'max': 'O', 'min': 'P', 'avg': 'Q'}
-                        }
+                        # Write parameter values - different column layouts per location
+                        if location == 'PK Barbat':
+                            # PK Barbat has all 5 parameters
+                            col_mapping = {
+                                'mutnoca': {'max': 'C', 'min': 'D', 'avg': 'E'},
+                                'klor': {'max': 'F', 'min': 'G', 'avg': 'H'},
+                                'temp': {'max': 'I', 'min': 'J', 'avg': 'K'},
+                                'pH': {'max': 'L', 'min': 'M', 'avg': 'N'},
+                                'redox': {'max': 'O', 'min': 'P', 'avg': 'Q'}
+                            }
+                        else:
+                            # VS Lopar and VS Perici only have 3 parameters
+                            col_mapping = {
+                                'klor': {'max': 'C', 'min': 'D', 'avg': 'E'},
+                                'temp': {'max': 'F', 'min': 'G', 'avg': 'H'},
+                                'redox': {'max': 'I', 'min': 'J', 'avg': 'K'}
+                            }
                         
                         for param, values in params.items():
                             if param in col_mapping and values:
@@ -431,75 +478,44 @@ class ModernGUI:
         self.add_help_button(main_frame)
         
     def add_header(self, parent):
-        """Add company header with contact information."""
+        """Add logo and title header."""
         header_frame = tk.Frame(parent, bg=self.bg_color)
         header_frame.pack(fill=tk.X, pady=(0, 20))
         
-        # Company information frame
-        company_frame = tk.Frame(header_frame, bg=self.bg_color)
-        company_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Logo
+        try:
+            logo_data = base64.b64decode(LOGO_B64)
+            logo_image = Image.open(BytesIO(logo_data))
+            logo_image = logo_image.resize((60, 60), Image.Resampling.LANCZOS)
+            logo_photo = ImageTk.PhotoImage(logo_image)
+            
+            logo_label = tk.Label(header_frame, image=logo_photo, bg=self.bg_color)
+            logo_label.image = logo_photo  # Keep reference
+            logo_label.pack(side=tk.LEFT, padx=(0, 15))
+        except:
+            pass
         
-        # Company name - large and prominent
-        company_name_label = tk.Label(
-            company_frame,
-            text="FORNAX automatika d.o.o",
-            font=("Segoe UI", 20, "bold"),
+        # Title
+        title_frame = tk.Frame(header_frame, bg=self.bg_color)
+        title_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        title_label = tk.Label(
+            title_frame,
+            text="AquaExport Pro 2.0",
+            font=("Segoe UI", 24, "bold"),
             fg=self.primary_color,
             bg=self.bg_color
         )
-        company_name_label.pack(anchor=tk.W)
+        title_label.pack(anchor=tk.W)
         
-        # Address
-        address_label = tk.Label(
-            company_frame,
-            text="Mariborska 5, 22000 Šibenik",
-            font=("Segoe UI", 11),
-            fg="#333",
-            bg=self.bg_color
-        )
-        address_label.pack(anchor=tk.W)
-        
-        # Phone
-        phone_label = tk.Label(
-            company_frame,
-            text="+385 22 200 350",
-            font=("Segoe UI", 11),
-            fg="#333",
-            bg=self.bg_color
-        )
-        phone_label.pack(anchor=tk.W)
-        
-        # Email
-        email_label = tk.Label(
-            company_frame,
-            text="info@fornax-automatika.hr",
-            font=("Segoe UI", 11),
-            fg="#333",
-            bg=self.bg_color
-        )
-        email_label.pack(anchor=tk.W)
-        
-        # Application title on the right side
-        app_title_frame = tk.Frame(header_frame, bg=self.bg_color)
-        app_title_frame.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        app_title_label = tk.Label(
-            app_title_frame,
-            text="AquaExport Pro 2.0",
-            font=("Segoe UI", 18, "bold"),
-            fg=self.success_color,
-            bg=self.bg_color
-        )
-        app_title_label.pack(anchor=tk.E)
-        
-        app_subtitle_label = tk.Label(
-            app_title_frame,
+        subtitle_label = tk.Label(
+            title_frame,
             text="Izvoz podataka kvalitete vode",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 12),
             fg="#666",
             bg=self.bg_color
         )
-        app_subtitle_label.pack(anchor=tk.E)
+        subtitle_label.pack(anchor=tk.W)
         
     def add_date_selection(self, parent):
         """Add date selection widgets."""
@@ -781,6 +797,7 @@ AquaExport Pro 2.0 - Upute za korištenje
 
 1. ODABIR DATUMA:
    • Odaberite početni i završni datum za izvoz
+   • Koristite brze tipke za česte periode
    • Podaci se izvozе po danima
 
 2. IZVOZ PODATAKA:
@@ -796,7 +813,7 @@ AquaExport Pro 2.0 - Upute za korištenje
 4. NAPOMENE:
    • Ne zatvarajte program tijekom izvoza
    • Za probleme provjerite log datoteku
-   • Kontakt: neven.vrancic@fornax-automatika.hr
+   • Kontakt: podrska@vodovod.hr
         """
         
         messagebox.showinfo("Pomoć", help_text.strip())
@@ -818,7 +835,6 @@ def main():
         logger = setup_logging(config.export_dir)
         logger.info("Starting AquaExport Pro 2.0")
         
-        
         # Create default config file if it doesn't exist
         if not Path("config.toml").exists():
             with open("config.toml", "w") as f:
@@ -827,14 +843,13 @@ host = "localhost"
 port = 5432
 name = "SCADA_arhiva_rab"
 user = "postgres"
-password = "wrongpassword"
+password = "fakepass"
 
 [export]
 directory = "./exports"
 template_path = "./template.xlsx"
 ''')
             logger.info("Created default config.toml")
-        
         
         # Check template exists
         if not config.template_path.exists():
