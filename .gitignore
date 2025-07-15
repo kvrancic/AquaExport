@@ -42,3 +42,6 @@ exports/
 *.temp 
 
 exports/
+
+*.backup.xlsx
+helpers/
