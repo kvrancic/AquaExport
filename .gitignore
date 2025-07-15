@@ -35,7 +35,6 @@ Thumbs.db
 
 # Exports (user data)
 exports/
-*.xlsx
 *.xls
 
 # Temporary files

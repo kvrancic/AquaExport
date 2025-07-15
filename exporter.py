@@ -339,7 +339,9 @@ class WaterQualityExporter:
         
         # Process each year
         total_days = (end_date - start_date).days + 1
-        processed_days = 0
+        # Calculate total records to process (days * locations)
+        total_records = total_days * len(data)
+        processed_records = 0
         
         for year, year_data in years_data.items():
             wb, wb_path = self.get_or_create_workbook(year)
@@ -401,9 +403,9 @@ class WaterQualityExporter:
                                 if avg_val is not None:
                                     ws[f"{col_mapping[param]['avg']}{row}"] = avg_val
                         
-                        processed_days += 1
+                        processed_records += 1
                         if progress_callback:
-                            progress_callback(processed_days, total_days)
+                            progress_callback(processed_records, total_records)
                 
                 # Save workbook
                 try:
@@ -720,7 +722,7 @@ class ModernGUI:
         if total > 0:
             progress = (current / total) * 100
             self.progress_bar['value'] = progress
-            self.progress_label.config(text=f"Obrađeno: {current}/{total} dana")
+            self.progress_label.config(text=f"Obrađeno: {current}/{total} zapisa")
             self.root.update()
             
     def start_export(self):
