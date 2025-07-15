@@ -34,9 +34,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
 import threading
-from PIL import Image, ImageTk
-import base64
-from io import BytesIO
+
 
 # Configure logging
 def setup_logging(export_dir: Path) -> logging.Logger:
@@ -68,18 +66,7 @@ def setup_logging(export_dir: Path) -> logging.Logger:
     
     return logger
 
-# Company logo as base64 (placeholder - replace with actual logo)
-LOGO_B64 = """
-iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAL
-EgAACxIB0t1+/AAAABx0RVh0U29mdHdhcmUAQWRvYmUgRmlyZXdvcmtzIENTNui8sowAAAAWdEVYdENy
-ZWF0aW9uIFRpbWUAMDcvMTUvMTOXalgvAAABWklEQVR4nO3XMUrDUBjA8W9aFxEH6eBWEFz0Ap7Ag3gE
-j+IRPIIn8AQexCO4OYmDCE6Kg0MRB8VqQz+RgtBIfnlJft/3/iAwlJD3/kjTvLxEAAAAAAAAAAAAwKjp
-xI6RlY5G3ehpEOv0Fa2axHZb6yZ9n75uYp2+orE6Wquj1djRlz3aRc+xo0+VGnKaG2IvdvSpUkNOUkMe
-Y0efKjXkJDPkOXb0qVJDrrJDHmJHnxoq5Coz5D529KmhQmqZIXexo0+FDqlnhtT8hxT6x6xlhtzGjj41
-dMhGZshN7OhTQ4fUM0OuY0efKnTIfWbIVezoU6FD1jNDLmNHnxoqZD8zZBA7+tRQIf3MkPPY0adChzzm
-hmzGjj5Vacjl2NGnKg0BiV27r2is0le01pfO0nP0atvTYPFvt6+Wfpd9x2v/MXaMsnnqaK/SZ/MBAAAA
-AAAAAAD+2yfWqy7Q5CaFQAAAAABJRU5ErkJggg==
-"""
+
 
 @dataclass
 class TagMapping:
@@ -490,30 +477,20 @@ class ModernGUI:
         # Status/log section
         self.add_status_section(main_frame)
         
+        # Footer
+        self.add_footer(main_frame)
+        
         # Help button
         self.add_help_button(main_frame)
         
     def add_header(self, parent):
-        """Add logo and title header."""
+        """Add title header."""
         header_frame = tk.Frame(parent, bg=self.bg_color)
         header_frame.pack(fill=tk.X, pady=(0, 20))
         
-        # Logo
-        try:
-            logo_data = base64.b64decode(LOGO_B64)
-            logo_image = Image.open(BytesIO(logo_data))
-            logo_image = logo_image.resize((60, 60), Image.Resampling.LANCZOS)
-            logo_photo = ImageTk.PhotoImage(logo_image)
-            
-            logo_label = tk.Label(header_frame, image=logo_photo, bg=self.bg_color)
-            logo_label.image = logo_photo  # Keep reference
-            logo_label.pack(side=tk.LEFT, padx=(0, 15))
-        except:
-            pass
-        
         # Title
         title_frame = tk.Frame(header_frame, bg=self.bg_color)
-        title_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        title_frame.pack(fill=tk.BOTH, expand=True)
         
         title_label = tk.Label(
             title_frame,
@@ -688,6 +665,29 @@ class ModernGUI:
         self.status_text.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=self.status_text.yview)
         
+    def add_footer(self, parent):
+        """Add company footer."""
+        footer_frame = tk.Frame(parent, bg=self.bg_color)
+        footer_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # Company info
+        company_info = [
+            "FORNAX d.o.o",
+            "Mariborska 5, 22000 Šibenik",
+            "+ 385 22 200 350",
+            "info@fornax-automatika.hr"
+        ]
+        
+        for i, line in enumerate(company_info):
+            label = tk.Label(
+                footer_frame,
+                text=line,
+                font=("Segoe UI", 9),
+                fg="#666",
+                bg=self.bg_color
+            )
+            label.pack(anchor=tk.CENTER)
+            
     def add_help_button(self, parent):
         """Add help button."""
         help_button = tk.Button(
@@ -782,13 +782,10 @@ class ModernGUI:
                 
                 self.log_status("Izvoz završen uspješno!", "SUCCESS")
                 
-                # Show success message
+                # Show success message and open file location
                 self.root.after(
                     0,
-                    lambda: messagebox.showinfo(
-                        "Uspjeh",
-                        f"Podaci su uspješno izvezeni!\n\nLokacija: {self.config.export_dir}"
-                    )
+                    lambda: self.show_success_and_open_folder()
                 )
                 
         except PermissionError as e:
@@ -845,6 +842,26 @@ class ModernGUI:
                 
         return open_files
         
+    def show_success_and_open_folder(self):
+        """Show success message and open the export folder."""
+        # Show success message
+        result = messagebox.showinfo(
+            "Uspjeh",
+            f"Podaci su uspješno izvezeni!\n\nLokacija: {self.config.export_dir}\n\nKliknite OK da otvorite mapu s datotekama."
+        )
+        
+        # Open the export folder in Windows Explorer
+        if result == 'ok':
+            try:
+                os.startfile(str(self.config.export_dir))
+            except Exception as e:
+                self.logger.warning(f"Could not open folder: {e}")
+                # Fallback: show the path in a message box
+                messagebox.showinfo(
+                    "Lokacija datoteka",
+                    f"Datoteke su spremljene u:\n{self.config.export_dir}"
+                )
+    
     def reset_ui(self):
         """Reset UI after export."""
         self.export_button.config(state=tk.NORMAL, text="IZVEZI PODATKE")
