@@ -670,23 +670,15 @@ class ModernGUI:
         footer_frame = tk.Frame(parent, bg=self.bg_color)
         footer_frame.pack(fill=tk.X, pady=(10, 0))
         
-        # Company info
-        company_info = [
-            "FORNAX d.o.o",
-            "Mariborska 5, 22000 Šibenik",
-            "+ 385 22 200 350",
-            "info@fornax-automatika.hr"
-        ]
-        
-        for i, line in enumerate(company_info):
-            label = tk.Label(
-                footer_frame,
-                text=line,
-                font=("Segoe UI", 9),
-                fg="#666",
-                bg=self.bg_color
-            )
-            label.pack(anchor=tk.CENTER)
+        # Minimalistic company info
+        footer_label = tk.Label(
+            footer_frame,
+            text="Created by FORNAX d.o.o • info@fornax-automatika.hr",
+            font=("Segoe UI", 8),
+            fg="#999",
+            bg=self.bg_color
+        )
+        footer_label.pack(anchor=tk.CENTER)
             
     def add_help_button(self, parent):
         """Add help button."""
