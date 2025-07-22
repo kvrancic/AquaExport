@@ -10,7 +10,6 @@ openpyxl==3.1.2
 # GUI
 tkcalendar==1.6.1
 Pillow==10.2.0
-babel==2.14.0
 
 # Configuration
 tomli==2.0.1

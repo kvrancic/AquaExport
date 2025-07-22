@@ -1,153 +1,99 @@
-# AquaExport Pro 2.0
+# AquaExport Pro 2.1 - Dual Mode Water Data Exporter
 
-A modern, high-performance tool for exporting water quality data from PostgreSQL databases to Excel workbooks. Designed specifically for water treatment facilities with a beautiful GUI and blazing-fast performance.
+A modern, high-performance tool for exporting water quality and quantity data from PostgreSQL to Excel. Features dual-mode operation with dynamic UI theming.
 
-## 🌟 Features
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Version](https://img.shields.io/badge/version-2.1.0-brightgreen.svg)
 
-- **Beautiful Modern GUI** with intuitive date pickers and progress tracking
-- **Blazing Fast Performance** using optimized bulk database operations
-- **Idempotent File Handling** - creates or updates yearly workbooks seamlessly
-- **Multi-Location Support** for different water treatment facilities
-- **Comprehensive Error Handling** with detailed logging
-- **Single-File Executable** support for easy deployment
-- **Template-Based Export** using customizable Excel templates
+## 🚀 New in Version 2.1
 
-## 📋 Supported Water Quality Parameters
+- **Dual Mode Operation**: Switch between Water Quality and Water Quantities
+- **Dynamic Color Themes**: Blue theme for quality, green theme for quantities
+- **Organized File Structure**: Separate directories for templates and export types
+- **Enhanced Data Queries**: Optimized time-window queries for cumulative counters
+- **Improved Error Handling**: Better detection of open Excel files
 
-- **Mutnoca** (Turbidity)
-- **Klor** (Chlorine)
-- **Temperature**
-- **pH**
-- **Redox** (Oxidation-Reduction Potential)
+## 📋 Features
 
-## 🏭 Supported Locations
+### Water Quality Mode (Kvaliteta vode)
+- **Parameters**: Turbidity, Chlorine, Temperature, pH, Redox
+- **Locations**: PK Barbat, VS Lopar, VS Perici
+- **Output**: `kvaliteta_vode_YYYY.xlsx`
+- **Theme**: Blue interface
 
-- **PK Barbat** - Primary water treatment facility
-- **VS Lopar** - Water station Lopar
-- **VS Perici** - Water station Perici
+### Water Quantities Mode (Zahvaćene količine vode)
+- **Parameters**: Daily volume (m³), Max flow rate (l/s)
+- **Locations**: Hrvatsko primorje južni ogranak, Perići, Gvačići I, Mlinica
+- **Output**: `zahvacene_kolicine_YYYY.xlsx`
+- **Theme**: Green interface
+
+## 🏗️ Architecture
+
+### Directory Structure
+```
+AquaExport/
+├── templates/
+│   ├── kvaliteta_vode_template.xlsx
+│   └── zahvacene_kolicine_vode_template.xlsx
+├── exports/
+│   ├── kvaliteta_vode/
+│   │   └── kvaliteta_vode_2024.xlsx
+│   └── zahvacene_kolicine_vode/
+│       └── zahvacene_kolicine_2024.xlsx
+├── exporter.py
+├── config.toml
+└── README.md
+```
+
+### Database Schema
+- **floattable**: Time-series measurements
+  - `dateandtime`: Timestamp (UTC)
+  - `tagindex`: Sensor identifier
+  - `val`: Measured value
+- **tagtable**: Sensor definitions
+  - `tagindex`: Unique ID
+  - `tagname`: Human-readable name
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- **Windows 10/11** (primary platform)
-- **PostgreSQL** database with water quality data
-- **Python 3.8+** (for development)
-
 ### Installation
 
-#### Option 1: Download Executable (Recommended)
-1. Download the latest release from the releases page
-2. Extract the ZIP file to your desired location
-3. Ensure `template.xlsx` is in the same directory
-4. Run `AquaExport Pro 2.0.exe`
+#### Option 1: Pre-built Executable
+1. Download the latest release
+2. Extract to desired location
+3. Ensure Excel templates are in `templates/` directory
+4. Run `AquaExport Pro 2.1.exe`
 
-#### Option 2: Build from Source
+#### Option 2: From Source
 ```bash
-# Clone the repository
+# Clone repository
 git clone <repository-url>
-cd AquaExport
+cd aquaexport-pro
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the application
+# Run application
 python exporter.py
 ```
 
 ### Configuration
 
-1. **First Run**: The application will create a `config.toml` file
-2. **Edit Configuration**: Open `config.toml` and update database settings:
+Edit `config.toml`:
 
 ```toml
 [database]
-host = "your-database-host"
+host = "localhost"
 port = 5432
-name = "your-database-name"
-user = "your-username"
-password = "your-password"
+name = "SCADA_arhiva_rab"
+user = "postgres"
+password = "your_password"
 
 [export]
 directory = "./exports"
-template_path = "./template.xlsx"
-```
+template_dir = "./templates"
 
-## 📖 Usage
-
-### Basic Export
-1. **Launch** the application
-2. **Select Date Range** using the date pickers
-3. **Choose Export Options**:
-   - Quick export (last 7/30/90 days)
-   - Custom date range
-4. **Click Export** and monitor progress
-5. **Find Results** in the exports directory
-
-### Advanced Features
-- **Yearly Workbooks**: Data is organized by year in separate Excel files
-- **Template Support**: Uses customizable Excel templates for consistent formatting
-- **Progress Tracking**: Real-time progress updates during export
-- **Error Recovery**: Automatic retry and detailed error logging
-
-## 🛠️ Development
-
-### Project Structure
-```
-AquaExport/
-├── exporter.py          # Main application logic
-├── build.py            # Build script for executable
-├── config.toml         # Configuration file
-├── requirements.txt    # Python dependencies
-├── template.xlsx       # Excel template (not included)
-└── README.md          # This file
-```
-
-### Building Executable
-```bash
-# Install build dependencies
-pip install pyinstaller
-
-# Build executable
-python build.py
-
-# Build with optimization
-python build.py --optimize
-```
-
-### Database Schema
-The application expects a PostgreSQL database with the following structure:
-- **Table**: `floattable`
-- **Columns**: 
-  - `dateandtime` (timestamp)
-  - `tagindex` (integer)
-  - `val` (float)
-
-### Tag Mappings
-Water quality parameters are mapped to database tag indices:
-
-| Location | Mutnoca | Klor | Temp | pH | Redox |
-|----------|---------|------|------|----|-------|
-| PK Barbat | 3 | 21 | 134 | 132 | 133 |
-| VS Lopar | 151 | 155 | 156 | - | - |
-| VS Perici | - | 72 | 82 | - | 81 |
-
-## 🔧 Configuration Options
-
-### Database Settings
-- `host`: PostgreSQL server address
-- `port`: Database port (default: 5432)
-- `name`: Database name
-- `user`: Database username
-- `password`: Database password
-
-### Export Settings
-- `directory`: Output directory for Excel files
-- `template_path`: Path to Excel template file
-
-### Tag Mappings (Optional)
-You can override default tag mappings in `config.toml`:
-```toml
+# Water quality tag mappings
 [tag_mappings.pk_barbat]
 mutnoca = 3
 klor = 21
@@ -156,75 +102,105 @@ pH = 132
 redox = 133
 ```
 
-## 📊 Output Format
+## 📊 Data Processing Logic
 
-### Excel Structure
-- **Yearly Workbooks**: One file per year (e.g., `2024_water_quality.xlsx`)
-- **Monthly Sheets**: Data organized by month in Croatian
-- **Location Blocks**: Separate sections for each facility
-- **Daily Aggregates**: Min, Max, and Average values per day
+### Water Quality
+- Standard daily aggregation (MIN/MAX/AVG)
+- Query window: 00:00 - 23:59 each day
 
-### File Naming Convention
-- Format: `YYYY_water_quality.xlsx`
-- Example: `2024_water_quality.xlsx`
+### Water Quantities
+- **Daily Volume**: Cumulative counter that resets nightly
+  - Query window: 22:00 today to 03:00 tomorrow
+  - Takes MAX value in this window
+- **Max Flow**: Instantaneous readings
+  - Query window: 00:00 - 23:59
+  - Takes MAX value during the day
 
-## 🐛 Troubleshooting
+## 🛠️ Development
+
+### Building from Source
+
+```bash
+# Basic build
+python build.py
+
+# Optimized build
+python build.py --optimize
+
+# With installer (requires Inno Setup)
+python build.py --installer
+```
+
+### Tag Mappings
+
+#### Water Quality Tags
+| Location | Turbidity | Chlorine | Temperature | pH | Redox |
+|----------|-----------|----------|-------------|-----|-------|
+| PK Barbat | 3 | 21 | 134 | 132 | 133 |
+| VS Lopar | - | 151 | 155 | - | 156 |
+| VS Perici | - | 72 | 82 | - | 81 |
+
+#### Water Quantity Tags
+| Location | Daily In | Daily Out | Max Flow In | Max Flow Out |
+|----------|----------|-----------|-------------|--------------|
+| Hr. primorje južni ogranak | 14 | 13 | 18 | 16 |
+| Perići | 67 | - | 68 | - |
+| Gvačići I | 103 | - | 0 | - |
+| Mlinica | 51 | - | 52 | - |
+
+## 🔧 Troubleshooting
 
 ### Common Issues
 
-#### Database Connection Failed
-- Verify database credentials in `config.toml`
-- Ensure PostgreSQL is running and accessible
-- Check firewall settings
+1. **Missing Templates**
+   - Ensure both Excel templates are in `templates/` directory
+   - Templates must be named exactly as specified
 
-#### Template File Missing
-- Ensure `template.xlsx` is in the application directory
-- Verify template path in configuration
+2. **Excel File Locked**
+   - Close any open Excel files before exporting
+   - The app will warn if files are potentially open
 
-#### Permission Errors
-- Run as administrator if needed
-- Check write permissions for export directory
+3. **Database Connection**
+   - Verify PostgreSQL is running
+   - Check credentials in `config.toml`
+   - Ensure network connectivity
 
-#### Windows Defender Warning
-- This is normal for new executables
-- Click "More info" → "Run anyway"
+4. **Wrong Data Values**
+   - For daily volumes, check if counters reset as expected
+   - Verify tag mappings match your SCADA configuration
+   - Check timezone settings (data is stored in UTC)
 
-### Logs
-- Log files are created in the export directory
-- Check `exporter.log` for detailed error information
-- Logs rotate automatically (max 10MB, 5 backups)
+### Log Files
+- Location: `exports/exporter.log`
+- Rotation: 5 files × 10MB each
+- Contains detailed debug information
 
-## 📝 Changelog
+## 📝 Migration from v1.x
 
-### Version 2.0.0
-- Complete GUI redesign with modern interface
-- Improved performance with bulk database operations
-- Enhanced error handling and logging
-- Template-based Excel export
-- Multi-location support
-- Single-file executable
+When upgrading from version 1.x:
 
-### Version 1.x
-- Basic command-line export functionality
-- Simple Excel output
+1. The app will automatically migrate your old `template.xlsx`
+2. Place the new quantities template in the templates directory
+3. Old exports remain in their original location
+4. Update `config.toml` to use `template_dir` instead of `template_path`
 
+## 🔒 Security
+
+- Database credentials stored in `config.toml` (keep secure)
+- No passwords in GUI - all automated
+- Consider using environment variables in production
+- Restrict file permissions appropriately
 
 ## 📄 License
 
-This project is proprietary software developed for water quality management systems.
+Proprietary software for water management systems.
 
 ## 📞 Support
 
-For technical support or questions:
-- **Email**: neven.vrancic@fornax-automatika.hr
-- **Company**: Fornax Automatika
-
-## 🔒 Security Notes
-
-- Database credentials are stored in plain text in `config.toml`
-- Consider using environment variables for production deployments
-- Ensure proper access controls on configuration files
+**Technical Support**: neven.vrancic@fornax-automatika.hr  
+**Company**: FORNAX d.o.o.  
+**Website**: www.fornax-automatika.hr
 
 ---
 
-**AquaExport Pro 2.0** - Professional water quality data export solution 
+**AquaExport Pro 2.1** - Professional dual-mode water data export solution
