@@ -120,16 +120,32 @@ redox = 133
 
 ### Building from Source
 
+**Default Behavior:** The executable will be created in `C:\Program Files\AquaExport\` by default, giving it a professional installation location.
+
 ```bash
-# Basic build
+# Basic build (default: C:\Program Files\AquaExport)
 python build.py
+
+# Custom output directory
+python build.py -o ./my_output
+python build.py --output-dir C:\MyExecutables
 
 # Optimized build
 python build.py --optimize
 
 # With installer (requires Inno Setup)
 python build.py --installer
+
+# Full custom build
+python build.py -o ./custom_output -w ./custom_build --optimize
 ```
+
+#### Build Options
+- `-o, --output-dir DIR`: Specify where the executable will be created (default: `C:\Program Files\AquaExport`)
+- `-w, --work-dir DIR`: Specify directory for temporary build files (default: `./build`)
+- `-s, --spec-dir DIR`: Specify directory for .spec files (default: current directory)
+- `--optimize`: Enable size optimization
+- `--installer`: Create Inno Setup installer (Windows only)
 
 ### Tag Mappings
 

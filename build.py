@@ -7,6 +7,7 @@ import os
 import sys
 import shutil
 import subprocess
+import argparse
 from pathlib import Path
 import PyInstaller.__main__
 
@@ -18,15 +19,44 @@ def create_icon_if_missing():
         return None
     return str(icon_path)
 
-def build_executable():
+def build_executable(output_dir=None, work_dir=None, spec_dir=None):
     """Build the standalone executable."""
+    
+    # Parse command line arguments for output directories
+    parser = argparse.ArgumentParser(description='Build AquaExport Pro 2.1 executable')
+    parser.add_argument('--output-dir', '-o', 
+                       help='Directory where the executable will be created (default: ./dist)')
+    parser.add_argument('--work-dir', '-w',
+                       help='Directory for temporary build files (default: ./build)')
+    parser.add_argument('--spec-dir', '-s',
+                       help='Directory for .spec files (default: current directory)')
+    parser.add_argument('--optimize', action='store_true',
+                       help='Enable size optimization')
+    parser.add_argument('--installer', action='store_true',
+                       help='Create Inno Setup installer (Windows only)')
+    
+    # Parse known args to avoid conflicts with PyInstaller
+    args, unknown = parser.parse_known_args()
+    
+    # Use provided arguments or defaults
+    output_dir = args.output_dir or output_dir or r'C:\Program Files\AquaExport'
+    work_dir = args.work_dir or work_dir or 'build'
+    spec_dir = args.spec_dir or spec_dir or '.'
+    
+    # Convert to Path objects
+    output_path = Path(output_dir)
+    work_path = Path(work_dir)
+    spec_path = Path(spec_dir)
 
     print("🔨 Building AquaExport Pro 2.1 (Dual Mode)...")
     print("=" * 50)
+    print(f"📁 Output directory: {output_path.absolute()}")
+    print(f"🔧 Work directory: {work_path.absolute()}")
+    print(f"📋 Spec directory: {spec_path.absolute()}")
 
     # Clean previous builds
-    for dir_name in ['build', 'dist']:
-        if os.path.exists(dir_name):
+    for dir_name in [work_path, output_path]:
+        if dir_name.exists():
             shutil.rmtree(dir_name)
             print(f"  ✓ Cleaned {dir_name}/")
 
@@ -35,12 +65,12 @@ def build_executable():
     icon_args = ['--icon=' + icon_path] if icon_path else []
 
     # PyInstaller arguments
-    args = [
+    pyinstaller_args = [
         'exporter.py',
         '--onefile',
         '--windowed',
         '--name=AquaExport Pro 2.1',
-        '--add-data=templates;templates',  # Include templates directory
+        '--add-data=templates:templates',  # Include templates directory
         '--hidden-import=tkinter',
         '--hidden-import=tkcalendar',
         '--hidden-import=PIL._tkinter_finder',
@@ -51,11 +81,14 @@ def build_executable():
         '--hidden-import=babel.numbers',
         '--clean',
         '--noconfirm',
+        f'--distpath={output_path}',
+        f'--workpath={work_path}',
+        f'--specpath={spec_path}',
     ] + icon_args
 
     # Add optimization flags if requested
-    if '--optimize' in sys.argv:
-        args.extend(['--optimize=2'])
+    if args.optimize:
+        pyinstaller_args.extend(['--optimize=2'])
         print("  ✓ Optimization enabled")
 
     # Run PyInstaller
@@ -63,24 +96,23 @@ def build_executable():
     print("  ⏳ This may take a few minutes...")
 
     try:
-        PyInstaller.__main__.run(args)
+        PyInstaller.__main__.run(pyinstaller_args)
     except Exception as e:
         print(f"\n❌ PyInstaller failed: {e}")
         return False
 
     # Prepare distribution directory
-    dist_dir = Path('dist')
-    if not dist_dir.exists() or not (dist_dir / 'AquaExport Pro 2.1.exe').exists():
+    if not output_path.exists() or not (output_path / 'AquaExport Pro 2.1.exe').exists():
         print("\n❌ Build failed - executable not created")
         return False
 
     print("\n✓ Executable built successfully!")
 
-    # Create proper directory structure in dist
+    # Create proper directory structure in output directory
     print("\n📁 Setting up distribution structure...")
 
     # Create templates directory
-    templates_dir = dist_dir / 'templates'
+    templates_dir = output_path / 'templates'
     templates_dir.mkdir(exist_ok=True)
 
     # Copy templates if they exist
@@ -109,7 +141,7 @@ def build_executable():
 
     # Copy default config
     if Path('config.toml').exists():
-        shutil.copy2('config.toml', dist_dir / 'config.toml.default')
+        shutil.copy2('config.toml', output_path / 'config.toml.default')
         print("  ✓ Copied config.toml.default")
 
     # Create README for distribution
@@ -152,18 +184,18 @@ Tvrtka: FORNAX d.o.o.
 verzija 2.1.0
 """
 
-    with open(dist_dir / 'README.txt', 'w', encoding='utf-8') as f:
+    with open(output_path / 'README.txt', 'w', encoding='utf-8') as f:
         f.write(readme_content)
     print("  ✓ Created README.txt")
 
     # Create example exports directory structure
-    exports_dir = dist_dir / 'exports'
+    exports_dir = output_path / 'exports'
     (exports_dir / 'kvaliteta_vode').mkdir(parents=True, exist_ok=True)
     (exports_dir / 'zahvacene_kolicine_vode').mkdir(parents=True, exist_ok=True)
     print("  ✓ Created example exports directory structure")
 
     # Calculate final size
-    exe_path = dist_dir / 'AquaExport Pro 2.1.exe'
+    exe_path = output_path / 'AquaExport Pro 2.1.exe'
     if exe_path.exists():
         size_mb = exe_path.stat().st_size / (1024 * 1024)
 
@@ -171,7 +203,7 @@ verzija 2.1.0
         print("✅ Build completed successfully!")
         print(f"\n📍 Location: {exe_path.absolute()}")
         print(f"📏 Size: {size_mb:.1f} MB")
-        print(f"📁 Total files in dist: {len(list(dist_dir.rglob('*')))}")
+        print(f"📁 Total files in output: {len(list(output_path.rglob('*')))}")
 
         if templates_found < 2:
             print("\n⚠️  IMPORTANT: Remember to add missing Excel templates!")
@@ -181,11 +213,10 @@ verzija 2.1.0
 
     return False
 
-def create_installer():
+def create_installer(output_dir=r'C:\Program Files\AquaExport'):
     """Create an optional installer using Inno Setup (if available)."""
     # This is optional - only if Inno Setup is installed
-    iss_script = """
-[Setup]
+    iss_script = r"""[Setup]
 AppName=AquaExport Pro
 AppVersion=2.1.0
 AppPublisher=FORNAX d.o.o.
@@ -214,11 +245,11 @@ Filename: "{app}\AquaExport Pro 2.1.exe"; Description: "Launch AquaExport Pro"; 
 
     # Check if Inno Setup is available
     inno_path = r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-    if os.path.exists(inno_path) and '--installer' in sys.argv:
+    if os.path.exists(inno_path):
         print("\n📦 Creating installer with Inno Setup...")
 
         # Write script
-        with open('dist/setup.iss', 'w') as f:
+        with open(f'{output_dir}/setup.iss', 'w') as f:
             f.write(iss_script)
 
         # Create installer directory
@@ -226,7 +257,7 @@ Filename: "{app}\AquaExport Pro 2.1.exe"; Description: "Launch AquaExport Pro"; 
 
         # Run Inno Setup
         try:
-            subprocess.run([inno_path, 'dist/setup.iss'], check=True)
+            subprocess.run([inno_path, f'{output_dir}/setup.iss'], check=True)
             print("  ✓ Installer created successfully!")
         except subprocess.CalledProcessError:
             print("  ❌ Installer creation failed")
@@ -234,14 +265,37 @@ Filename: "{app}\AquaExport Pro 2.1.exe"; Description: "Launch AquaExport Pro"; 
 if __name__ == "__main__":
     print("\n🚀 AquaExport Pro 2.1 Build Tool")
     print("   Dual-mode water data exporter")
+    print("\nUsage:")
+    print("  python build.py [options]")
     print("\nOptions:")
-    print("  --optimize    Enable size optimization")
-    print("  --installer   Create Inno Setup installer (Windows only)")
+    print("  -o, --output-dir DIR    Directory for executable (default: C:\\Program Files\\AquaExport)")
+    print("  -w, --work-dir DIR      Directory for build files (default: ./build)")
+    print("  -s, --spec-dir DIR      Directory for .spec files (default: current)")
+    print("  --optimize              Enable size optimization")
+    print("  --installer             Create Inno Setup installer (Windows only)")
+    print("\nExamples:")
+    print("  python build.py")
+    print("  python build.py -o ./my_output")
+    print("  python build.py --output-dir C:\\MyExecutables --optimize")
     print("")
 
-    success = build_executable()
+    # Parse arguments for output directory
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--output-dir', '-o')
+    parser.add_argument('--work-dir', '-w')
+    parser.add_argument('--spec-dir', '-s')
+    parser.add_argument('--optimize', action='store_true')
+    parser.add_argument('--installer', action='store_true')
+    
+    args, _ = parser.parse_known_args()
+    
+    success = build_executable(
+        output_dir=args.output_dir,
+        work_dir=args.work_dir,
+        spec_dir=args.spec_dir
+    )
 
-    if success and '--installer' in sys.argv:
-        create_installer()
+    if success and args.installer:
+        create_installer(args.output_dir or r'C:\Program Files\AquaExport')
 
     print("\n" + ("✅ All done!" if success else "❌ Build failed!"))
